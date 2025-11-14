@@ -1,2 +1,204 @@
-# personalizedtaskmanager
-Here is a **350-character GitHub description** (within limit):  *A Python-based Personalized Task Manager with user signup/login, SHA-256 password hashing, strong password checks, personal data storage, task creation, and task status updates with timestamps. Uses text files for storage and provides an easy, menu-based dashboard.
+import datetime
+import os
+import hashlib
+import re  # ✅ for password strength check
+
+
+# ==========================
+# Utility Functions
+# ==========================
+
+def get_filename(username, suffix="task.txt"):
+    """Helper to generate consistent filenames for each user."""
+    return f"{username}_{suffix}"
+
+
+def hash_password(password):
+    """Hash a password using SHA-256."""
+    return hashlib.sha256(password.encode()).hexdigest()
+
+
+def check_password_strength(password):
+    """Check if password meets strength requirements."""
+    if len(password) < 6:
+        return False, "Password must be at least 6 characters long."
+    if not re.search(r"[A-Z]", password):
+        return False, "Password must contain at least 1 uppercase letter."
+    if not re.search(r"[a-z]", password):
+        return False, "Password must contain at least 1 lowercase letter."
+    if not re.search(r"[0-9]", password):
+        return False, "Password must contain at least 1 digit."
+    if not re.search(r"[!@#$%^&*(),.?\":{}|<>]", password):
+        return False, "Password must contain at least 1 special character (!@#$%^&* etc)."
+    return True, ""
+
+
+# ==========================
+# User Account Functions
+# ==========================
+
+def user_information(username, password):
+    """Store user information along with password hash."""
+    name = input("Enter your name please: ")
+    address = input("Your address: ")
+    age = input("Your age please: ")
+
+    filename = get_filename(username)
+    with open(filename, 'w') as f:
+        f.write(hash_password(password) + "\n")  # store hashed password
+        f.write(f"Name: {name}\n")
+        f.write(f"Address: {address}\n")
+        f.write(f"Age: {age}\n")
+    print("Signup successful! ✅")
+
+
+def signup():
+    """Signup a new user."""
+    print("\n--- SIGNUP ---")
+    username = input("Choose a username: ").strip()
+
+    if os.path.exists(get_filename(username)):
+        print("⚠️ Username already exists, try another one!")
+        return
+
+    # Password input with strength check
+    while True:
+        password = input("Enter a password: ").strip()  # visible input
+        confirm_password = input("Confirm your password: ").strip()
+
+        if password != confirm_password:
+            print("❌ Passwords do not match! Try again.")
+            continue
+
+        valid, message = check_password_strength(password)
+        if not valid:
+            print(f"⚠️ {message} Please try again.")
+            continue
+        break
+
+    user_information(username, password)
+    print("Now please log in 👇")
+    login()
+
+
+def login():
+    """Login for existing users."""
+    print("\n--- LOGIN ---")
+    username = input("Enter username: ").strip()
+    password = input("Enter password: ").strip()  # visible input
+
+    filename = get_filename(username)
+    if not os.path.exists(filename):
+        print("⚠️ Username not found. Try signing up first!")
+        return
+
+    with open(filename, 'r') as f:
+        stored_hash = f.readline().strip()   # first line is hashed password
+
+    if hash_password(password) == stored_hash:
+        print("\nLogin successful ✅")
+        dashboard(username)
+    else:
+        print("❌ Incorrect password!")
+
+
+# ==========================
+# Task Management Functions
+# ==========================
+
+def dashboard(username):
+    """Main menu after login."""
+    while True:
+        print("\n--- DASHBOARD ---")
+        print("1 - View your data")
+        print("2 - Add task")
+        print("3 - Update task status")
+        print("4 - View task status")
+        print("0 - Logout")
+
+        choice = input("Enter choice: ").strip()
+        if choice == '1':
+            view_data(username)
+        elif choice == '2':
+            task_information(username)
+        elif choice == '3':
+            task_update(username)
+        elif choice == '4':
+            task_update_viewer(username)
+        elif choice == '0':
+            print("Logging out... 👋")
+            break
+        else:
+            print("⚠️ Invalid input, try again.")
+
+
+def view_data(username):
+    """View stored user data."""
+    filename = get_filename(username)
+    with open(filename, 'r') as f:
+        print("\n--- USER DATA ---")
+        print(f.read())
+
+
+def task_information(username):
+    """Add new tasks."""
+    try:
+        n = int(input("Enter number of tasks to add: "))
+    except ValueError:
+        print("⚠️ Invalid number!")
+        return
+
+    filename = get_filename(username)
+
+    with open(filename, 'a') as f:
+        for i in range(1, n + 1):
+            task = input(f"Enter task {i}: ")
+            target = input("Enter target: ")
+            f.write(f"TASK {i}: {task}\n")
+            f.write(f"TARGET {i}: {target}\n")
+    print("✅ Tasks added successfully.")
+
+
+def task_update(username):
+    """Update task status."""
+    filename = get_filename(username, "TASK.txt")
+    completed = input("Enter completed tasks: ")
+    not_started = input("Enter not started tasks: ")
+    ongoing = input("Enter ongoing tasks: ")
+
+    with open(filename, 'a') as f:
+        f.write("\n--- TASK STATUS UPDATE ---\n")
+        f.write(f"Timestamp: {datetime.datetime.now()}\n")
+        f.write(f"COMPLETED: {completed}\n")
+        f.write(f"ONGOING: {ongoing}\n")
+        f.write(f"NOT STARTED: {not_started}\n")
+    print("✅ Task status updated.")
+
+
+def task_update_viewer(username):
+    """View task status file."""
+    filename = get_filename(username, "TASK.txt")
+    if not os.path.exists(filename):
+        print("⚠️ No task updates yet.")
+        return
+    with open(filename, 'r') as f:
+        print("\n--- TASK STATUS ---")
+        print(f.read())
+
+
+# ==========================
+# Main Execution
+# ==========================
+
+if __name__ == '__main__':
+    print("WELCOME TO TASK MANAGER ✅")
+    choice = input("Are you new here? (1 for Yes, 0 for No): ").strip()
+
+    if choice == '1':
+        signup()
+    elif choice == '0':
+        login()
+    else:
+        print("⚠️ Wrong input!")
+
+
